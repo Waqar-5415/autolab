@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>AutoLab – Regex ⇄ NFA / DFA Visualizer</title>
+    <meta name="color-scheme" content="light dark">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f6fb;
+            --card: #fff;
+            --tx: #1b1d2a;
+            --mut: #6b7086;
+            --bd: #e3e5f0;
+            --ac: #6d5dfc;
+            --ac2: #a855f7;
+            --ok: #15803d;
+            --er: #dc2626;
+            --edge: #5b6078;
+            --sh: 0 6px 24px rgba(40, 40, 90, .08);
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px)
+        }
+
+        @media(prefers-color-scheme:dark) {
+            :root:not([data-theme=light]) {
+                --bg: #0f111a;
+                --card: #181b29;
+                --tx: #eceefb;
+                --mut: #9aa0bd;
+                --bd: #2a2e45;
+                --ac: #8b7dff;
+                --ac2: #c084fc;
+                --ok: #4ade80;
+                --er: #f87171;
+                --edge: #a3a9c8;
+                --sh: 0 6px 24px rgba(0, 0, 0, .4)
+            }
+        }
+
+        :root[data-theme=dark] {
+            --bg: #0f111a;
+            --card: #181b29;
+            --tx: #eceefb;
+            --mut: #9aa0bd;
+            --bd: #2a2e45;
+            --ac: #8b7dff;
+            --ac2: #c084fc;
+            --ok: #4ade80;
+            --er: #f87171;
+            --edge: #a3a9c8;
+            --sh: 0 6px 24px rgba(0, 0, 0, .4)
+        }
+
+        html {
+            scroll-padding-top: env(safe-area-inset-top, 0px)
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        [hidden] {
+            display: none !important
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--tx);
+            font: 15px/1.55 Inter, system-ui, sans-serif;
+            transition: background .3s, color .3s
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0 0 auto;
+            height: env(safe-area-inset-top, 0px);
+            background: var(--card);
+            z-index: 10
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px;
+            background: var(--card);
+            border-bottom: 1px solid var(--bd);
+            position: sticky;
+            top: env(safe-area-inset-top, 0px);
+            z-index: 5
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 21px;
+            background: linear-gradient(90deg, var(--ac), var(--ac2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            white-space: nowrap
+        }
+
+        #tabs {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+            overflow-x: auto
+        }
+
+        .tb {
+            border: 0;
+            background: none;
+            color: var(--mut);
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font: 600 14px Inter, sans-serif;
+            white-space: nowrap;
+            transition: .2s
+        }
+
+        .tb:hover {
+            color: var(--tx)
+        }
+
+        .tb.on {
+            background: var(--ac);
+            color: #fff
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 18px
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--bd);
+            border-radius: 16px;
+            box-shadow: var(--sh);
+            padding: 16px;
+            animation: fi .4s
+        }
+
+        @keyframes fi {
+            from {
+                opacity: 0;
+                transform: translateY(8px)
+            }
+        }
+
+        h1 {
+            margin: 0 0 4px;
+            font-size: 26px
+        }
+
+        h2 {
+            margin: 0 0 8px
+        }
+
+        p {
+            margin: 6px 0
+        }
+
+        .mut {
+            color: var(--mut);
+            font-size: 13px
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 10px 0
+        }
+
+        input,
+        textarea {
+            background: var(--bg);
+            color: var(--tx);
+            border: 1.5px solid var(--bd);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font: 16px ui-monospace, Menlo, Consolas, monospace;
+            outline: 0;
+            transition: .2s;
+            min-width: 0
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--ac);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac) 25%, transparent)
+        }
+
+        #rx {
+            flex: 1;
+            min-width: 200px;
+            font-size: 20px
+        }
+
+        textarea {
+            width: 100%
+        }
+
+        .btn {
+            background: linear-gradient(90deg, var(--ac), var(--ac2));
+            color: #fff;
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font: 600 14px Inter, sans-serif;
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(109, 93, 252, .4)
+        }
+
+        .btn.gh {
+            background: var(--bg);
+            color: var(--tx);
+            border: 1px solid var(--bd);
+            padding: 6px 12px;
+            font-size: 13px;
+            box-shadow: none
+        }
+
+        button:focus-visible,
+        .nd:focus-visible {
+            outline: 3px solid var(--ac);
+            outline-offset: 2px
+        }
+
+        .chip {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 600
+        }
+
+        .ok {
+            background: rgba(22, 163, 74, .15);
+            color: var(--ok)
+        }
+
+        .bad {
+            background: rgba(220, 38, 38, .15);
+            color: var(--er)
+        }
+
+        .ex {
+            display: inline-block;
+            margin: 3px;
+            padding: 5px 12px;
+            border-radius: 99px;
+            border: 1px solid var(--bd);
+            background: var(--bg);
+            color: var(--tx);
+            cursor: pointer;
+            font: 13px ui-monospace, monospace;
+            transition: .2s
+        }
+
+        .ex:hover {
+            border-color: var(--ac);
+            transform: translateY(-2px)
+        }
+
+        #pipe {
+            display: flex;
+            gap: 8px;
+            margin: 16px 0;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .ar {
+            color: var(--mut)
+        }
+
+        .ps {
+            flex: 1;
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 10px;
+            border-radius: 14px;
+            border: 1.5px solid var(--bd);
+            background: var(--card);
+            color: var(--tx);
+            cursor: pointer;
+            transition: .25s;
+            font: 600 14px Inter
+        }
+
+        .ps small {
+            color: var(--mut);
+            font-weight: 400
+        }
+
+        .ps.on {
+            border-color: var(--ac);
+            background: color-mix(in srgb, var(--ac) 12%, var(--card));
+            transform: translateY(-2px)
+        }
+
+        .ws {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 16px
+        }
+
+        @media(max-width:900px) {
+            .ws {
+                grid-template-columns: 1fr
+            }
+        }
+
+        #cvh {
+            height: 470px;
+            border-radius: 12px;
+            background: var(--bg);
+            overflow: hidden;
+            touch-action: none;
+            cursor: grab
+        }
+
+        #cvh svg {
+            width: 100%;
+            height: 100%;
+            display: block
+        }
+
+        .ast,
+        .empty {
+            margin: 0;
+            padding: 20px;
+            font: 14px ui-monospace, monospace;
+            color: var(--mut);
+            white-space: pre;
+            overflow: auto;
+            height: 100%
+        }
+
+        .tools {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            align-items: center;
+            font-size: 13px
+        }
+
+        #pbody {
+            max-height: 450px;
+            overflow: auto;
+            margin-top: 10px
+        }
+
+        #pbody>div,
+        #pbody>table {
+            animation: fi .3s
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13px
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid var(--bd);
+            padding: 6px 8px;
+            text-align: left;
+            vertical-align: top
+        }
+
+        th {
+            color: var(--mut)
+        }
+
+        tr.hv td {
+            background: color-mix(in srgb, var(--ac) 16%, transparent)
+        }
+
+        .sl {
+            padding-left: 20px;
+            margin: 8px 0
+        }
+
+        .sl button {
+            border: 0;
+            background: none;
+            color: var(--mut);
+            cursor: pointer;
+            font: 13px Inter;
+            text-align: left;
+            padding: 2px 0
+        }
+
+        .sl button.on {
+            color: var(--ac);
+            font-weight: 700
+        }
+
+        .exp {
+            background: color-mix(in srgb, var(--ac) 10%, var(--card));
+            border-left: 4px solid var(--ac);
+            border-radius: 10px;
+            padding: 10px 14px
+        }
+
+        .bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 16px 0;
+            position: sticky;
+            bottom: 8px
+        }
+
+        .bar .card {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 10px 16px
+        }
+
+        .blk {
+            display: inline-block;
+            margin: 2px;
+            padding: 2px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid var(--bd)
+        }
+
+        #toast {
+            position: fixed;
+            right: 16px;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            padding: 12px 18px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 600;
+            z-index: 20;
+            max-width: 80vw;
+            transition: .3s;
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none
+        }
+
+        #toast.on {
+            opacity: 1;
+            transform: none
+        }
+
+        footer {
+            text-align: center;
+            color: var(--mut);
+            padding: 24px;
+            font-size: 13px
+        }
+
+        .g2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px
+        }
+
+        code {
+            background: var(--bg);
+            padding: 1px 6px;
+            border-radius: 6px
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+            * {
+                animation: none !important;
+                transition: none !important
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="nav">
+        <div class="logo">⬡ AutoLab</div>
+        <nav id="tabs" aria-label="Pages"></nav><button class="btn gh" id="th" aria-label="Toggle dark / light theme">◐
+            Theme</button>
+    </header>
+    <main>
+        <section id="pg-r" class="pg card">
+            <h1>Regular expression → ε-NFA → DFA → minimal DFA</h1>
+            <p class="mut">Type a regex, press Enter. Step through every algorithm with ← / → and Space.</p>
+            <div class="row"><input id="rx" value="(a|b)*abb" spellcheck="false" aria-label="Regular expression"
+                    autocomplete="off"><button class="btn" id="go">Convert ⏎</button></div>
+            <div id="chip" class="chip ok" role="status"></div>
+            <div id="exs" style="margin-top:8px"></div>
+            <div id="exd" class="mut"></div>
+        </section>
+        <section id="pg-f" class="pg card" hidden>
+            <h1>Automaton → regular expression (state elimination)</h1>
+            <p class="mut">Describe a DFA/NFA below, one transition per line: <code>from symbols to</code>
+                (comma-separate symbols, <code>ε</code> for epsilon). The diagram is drawn live; drag nodes to
+                rearrange.</p>
+            <textarea id="ft" rows="9" spellcheck="false" aria-label="Automaton description">start: q0
+accept: q2
+# strings over {a,b} ending in ab
+q0 a q1
+q0 b q0
+q1 a q1
+q1 b q2
+q2 a q1
+q2 b q0</textarea>
+            <div class="row"><button class="btn" id="gof">Eliminate states ⏎</button><button class="btn gh"
+                    id="loadc">Load DFA from Regex page</button></div>
+            <div id="fres"></div>
+        </section>
+        <section id="pg-c" class="pg card" hidden>
+            <h1>Equivalence checker &amp; language explorer</h1>
+            <p class="mut">Product-automaton BFS decides equality and returns a shortest distinguishing string.</p>
+            <div class="row"><input id="c1" value="(a|b)*abb" aria-label="Regex 1"><input id="c2" value="(a*b*)*abb"
+                    aria-label="Regex 2"><button class="btn" id="cmp">Check</button></div>
+            <div id="cres"></div>
+        </section>
+        <section id="pg-l" class="pg" hidden>
+            <div class="g2">
+                <div class="card">
+                    <h2>Thompson’s construction</h2>
+                    <p>Each AST node becomes a fragment with one start and one accept state. Literal: one edge.
+                        Concatenation: ε from left accept to right start. Union: new start/accept with ε branches. Star:
+                        ε entry, exit, skip and loop-back edges. <code>+</code> has no skip edge; <code>?</code> has no
+                        loop-back.</p>
+                </div>
+                <div class="card">
+                    <h2>Subset construction</h2>
+                    <p>Start with ε-closure(start). For each DFA state S and symbol a compute T = ε-closure(move(S,a)).
+                        Every new non-empty T becomes a DFA state; a state is accepting if it contains an NFA accept
+                        state. See the <b>Subset</b> tab.</p>
+                </div>
+                <div class="card">
+                    <h2>DFA minimization</h2>
+                    <p>Remove unreachable states, add a dead state, start with {accepting},{non-accepting} and split
+                        blocks whose states reach different blocks on some symbol until stable. Each final block is one
+                        state. See <b>Partitions</b>.</p>
+                </div>
+                <div class="card">
+                    <h2>State elimination</h2>
+                    <p>Add new start S and accept F, then remove states one by one: new edge R(p,r) | R(p,q) R(q,q)*
+                        R(q,r). The last S→F label is the regex, simplified (ε-identity, (a*)*=a*, ε|x = x?).</p>
+                </div>
+                <div class="card">
+                    <h2>Syntax cheat-sheet</h2>
+                    <p><code>ab</code> concat · <code>a|b</code> union · <code>(…)</code> group · <code>*</code>
+                        <code>+</code> <code>?</code> repeat · <code>ε</code> or empty branch <code>(a|)</code> ·
+                        <code>[a-c]</code> class · <code>\*</code> escape. Not supported: back-references, anchors,
+                        <code>{n,m}</code>.</p>
+                </div>
+                <div class="card">
+                    <h2>Worked example</h2>
+                    <p><code>(a|b)*abb</code> → 14-state ε-NFA → 5-state DFA (A…E) → 4-state minimal DFA, because states
+                        A and C… merge when they behave identically. Try the string <code>aabb</code> in the Simulator.
+                    </p>
+                </div>
+            </div>
+        </section>
+        <div id="pipe"></div>
+        <div id="ws" class="ws">
+            <div class="card">
+                <div class="tools"><button class="btn gh" id="fit">⤢ Fit</button><button class="btn gh" id="rl">⟲
+                        Re-layout</button><label><input type="checkbox" id="hd" style="padding:0"> hide dead
+                        state</label><span style="flex:1"></span><button class="btn gh" id="svg">SVG</button><button
+                        class="btn gh" id="png">PNG</button><button class="btn gh" id="json">JSON</button><button
+                        class="btn gh" id="csv">CSV</button></div>
+                <div id="cvh"></div>
+                <p class="mut">Scroll to zoom · drag background to pan · drag states to move · hover a table row to find
+                    its state.</p>
+            </div>
+            <div class="card">
+                <div id="ptabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                <div id="pbody"></div>
+            </div>
+        </div>
+        <div id="bar" class="bar">
+            <div class="card"><button class="btn gh" id="pv" aria-label="Previous step">◀ Prev</button><button
+                    class="btn" id="pl" aria-label="Play or pause">▶ Play</button><button class="btn gh" id="nx"
+                    aria-label="Next step">Next ▶</button><label class="mut">Speed <input type="range" id="sp" min="1"
+                        max="10" value="5" style="padding:0"></label><b id="sc"></b></div>
+        </div>
+    </main>
+    <footer>AutoLab · Theory of Automata · runs entirely in your browser, no data leaves this page</footer>
+    <div id="toast" role="status"></div>
+    <script>
+        const $ = s => document.querySelector(s), EPS = 'ε', esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+        class E extends Error {constructor(m, p) {super(m); this.pos = p} }
+        /* ---------- parser ---------- */
+        function parse(src) {
+            let i = 0; const s = src, al = new Set(); if (!s.trim()) throw new E('Enter a regular expression', 0);
+            const alt = () => {let l = cat(); while (s[i] === '|') {i++; l = {t: 'alt', a: l, b: cat()}} return l},
+                cat = () => {let l = null; while (i < s.length && s[i] !== '|' && s[i] !== ')') {const r = post(); l = l ? {t: 'cat', a: l, b: r} : r} return l || {t: 'eps'}},
+                post = () => {let a = atom(); while (i < s.length && '*+?'.includes(s[i])) {a = {t: {'*': 'star', '+': 'plus', '?': 'opt'}[s[i]], a}; i++} return a},
+                lit = c => (al.add(c), {t: 'lit', c}),
+                atom = () => {
+                    const c = s[i];
+                    if (c === '(') {const o = i++, r = alt(); if (s[i] !== ')') throw new E('Unmatched “(” opened here', o); i++; return r}
+                    if ('*+?'.includes(c)) throw new E(`Nothing to repeat before “${c}”`, i);
+                    if ('{}^$'.includes(c)) throw new E(`“${c}” is not supported (anchors and counted repetition are outside this tool)`, i);
+                    if (c === '\\') {const d = s[i + 1]; if (d === undefined) throw new E('Dangling escape', i); if (/[0-9bBdDwWsS]/.test(d)) throw new E(`“\\${d}” (back-reference / shorthand) is not supported`, i); i += 2; return lit(d)}
+                    if (c === '[') {
+                        const o = i++, cs = []; while (i < s.length && s[i] !== ']') {const x = s[i++]; if (s[i] === '-' && i + 1 < s.length && s[i + 1] !== ']') {const y = s[i + 1]; i += 2; for (let k = x.charCodeAt(0); k <= y.charCodeAt(0); k++)cs.push(String.fromCharCode(k))} else cs.push(x)}
+                        if (s[i] !== ']') throw new E('Unclosed “[”', o); i++; if (!cs.length) throw new E('Empty character class', o); return cs.map(lit).reduce((a, b) => ({t: 'alt', a, b}))
+                    }
+                    i++; return c === EPS ? {t: 'eps'} : lit(c)
+                };
+            const ast = alt(); if (i < s.length) throw new E('Unmatched “)”', i); return {ast, alphabet: [...al].sort()}
+        }
+        const astTxt = (n, d = 0) => '  '.repeat(d) + ({lit: 'LITERAL ' + n.c, eps: 'ε (EPSILON)', cat: 'CONCAT', alt: 'UNION', star: 'STAR  *', plus: 'PLUS  +', opt: 'OPTIONAL  ?'}[n.t]) + '\n' + [n.a, n.b].filter(Boolean).map(x => astTxt(x, d + 1)).join('');
+        /* ---------- automaton helpers ---------- */
+        const M = new WeakMap, adjOf = A => {let m = M.get(A); if (!m) {m = {}; A.transitions.forEach(t => (m[t.from + '|' + t.symbol] ??= []).push(t.to)); M.set(A, m)} return m},
+            startId = A => A.states.find(s => s.isStart).id, key = s => [...s].sort((a, b) => a - b).join(','), F = k => '{' + k + '}',
+            move = (A, set, a) => {const m = adjOf(A), r = new Set; set.forEach(x => (m[x + '|' + a] || []).forEach(y => r.add(y))); return r},
+            clo = (A, set) => {const m = adjOf(A), st = [...set], seen = new Set(set); while (st.length) {const x = st.pop(); (m[x + '|' + EPS] || []).forEach(y => {if (!seen.has(y)) {seen.add(y); st.push(y)} })} return seen},
+            lbl = (A, id) => A.states.find(s => s.id === id)?.label ?? id, accepts = (A, set) => A.states.some(s => s.isAccept && set.has(s.id));
+        /* ---------- Thompson ---------- */
+        function thompson(ast, al) {
+            let n = 0; const tr = [], steps = [], ed = (f, t, s) => tr.push({from: f, to: t, symbol: s}), ns = () => n++;
+            const go = a => {
+                const l = a.a && go(a.a), r = a.b && go(a.b), n0 = n, t0 = tr.length; let f, ex, ti;
+                if (a.t === 'lit' || a.t === 'eps') {const s = ns(), e = ns(); ed(s, e, a.t === 'lit' ? a.c : EPS); f = {s, e}; ti = a.t === 'lit' ? `Literal “${a.c}”` : 'Epsilon'; ex = `New start ${s} and accept ${e} joined by an edge labelled ${a.t === 'lit' ? a.c : EPS}.`}
+                else if (a.t === 'cat') {ed(l.e, r.s, EPS); f = {s: l.s, e: r.e}; ti = 'Concatenation'; ex = `ε-edge from accept ${l.e} of the left fragment to start ${r.s} of the right fragment.`}
+                else if (a.t === 'alt') {const s = ns(), e = ns(); ed(s, l.s, EPS); ed(s, r.s, EPS); ed(l.e, e, EPS); ed(r.e, e, EPS); f = {s, e}; ti = 'Union (|)'; ex = `New start ${s} branches by ε into both fragments; both accepts lead by ε to new accept ${e}.`}
+                else {const c = l || go(a.a); const s = ns(), e = ns(); ed(s, c.s, EPS); ed(c.e, e, EPS); if (a.t !== 'plus') ed(s, e, EPS); if (a.t !== 'opt') ed(c.e, c.s, EPS); f = {s, e}; ti = {star: 'Kleene star (*)', plus: 'Plus (+)', opt: 'Optional (?)'}[a.t]; ex = `New start ${s} and accept ${e}; ε entry and exit edges${a.t !== 'plus' ? ', ε skip edge (zero repeats)' : ''}${a.t !== 'opt' ? ', ε loop-back edge (repeat)' : ''}.`}
+                const st = []; for (let k = 0; k < n; k++)st.push({id: k, label: '' + k, isStart: k === f.s, isAccept: k === f.e});
+                steps.push({title: ti, expl: ex, auto: {type: 'NFA', states: st, alphabet: al, transitions: tr.map(t => ({...t}))}, hl: {s: Array.from({length: n - n0}, (_, k) => n0 + k), e: tr.slice(t0).map(t => t.from + '>' + t.to)}}); return f
+            };
+            go(ast); const fin = steps.at(-1).auto; steps.forEach(s => s.lay = fin); steps.at(-1).expl += ` Done: ε-NFA with ${fin.states.length} states.`; return steps
+        }
+        /* ---------- subset construction ---------- */
+        function subset(N, lim = 200) {
+            const al = N.alphabet, acc = new Set(N.states.filter(s => s.isAccept).map(s => s.id)), nm = i => i < 26 ? String.fromCharCode(65 + i) : 'S' + i,
+            q0 = clo(N, [startId(N)]), ds = [q0], idx = {[key(q0)]: 0}, tr = [], rows = [], steps = [],
+            build = () => ({type: 'DFA', states: ds.map((s, i) => ({id: i, label: nm(i), isStart: i === 0, isAccept: [...s].some(x => acc.has(x)), meta: {set: F(key(s))}})), alphabet: al, transitions: tr.map(t => ({...t}))});
+            steps.push({title: 'Start state', expl: `ε-closure of the NFA start state ${startId(N)} is ${F(key(q0))}; it becomes DFA state A.`, auto: build(), hl: {s: [0]}});
+            for (let i = 0; i < ds.length; i++) {
+                const cells = {}, note = [], nw = [], t0 = tr.length;
+                al.forEach(a => {
+                    const mv = move(N, ds[i], a), c = clo(N, mv); let tg = null;
+                    if (c.size) {const k = key(c); if (!(k in idx)) {if (ds.length >= lim) throw new E(`More than ${lim} DFA states – stopped to avoid exponential blow-up`, 0); idx[k] = ds.length; ds.push(c); nw.push(ds.length - 1)} tg = idx[k]; tr.push({from: i, to: tg, symbol: a})}
+                    cells[a] = {mv: key(mv), cl: key(c), tg: tg === null ? null : nm(tg)}; note.push(`on “${a}”: move = ${F(key(mv))}, ε-closure = ${F(key(c))} → ${tg === null ? 'no transition' : (nw.includes(tg) ? 'new state ' : 'state ') + nm(tg)}`)
+                });
+                rows.push({name: nm(i), set: key(ds[i]), cells});
+                steps.push({title: `Process state ${nm(i)}`, expl: `State ${nm(i)} = ${F(key(ds[i]))}. ` + note.join('; ') + '.', auto: build(), hl: {s: [i, ...nw], e: tr.slice(t0).map(t => t.from + '>' + t.to)}})
+            }
+            const dfa = build(); steps.forEach(s => s.lay = dfa); steps.at(-1).expl += ` All states processed: DFA has ${dfa.states.length} states.`; return {dfa, steps, rows, al}
+        }
+        /* ---------- minimization ---------- */
+        function minimize(D) {
+            const al = D.alphabet, m = adjOf(D), s0 = startId(D), acc = new Set(D.states.filter(s => s.isAccept).map(s => s.id)), L = Object.fromEntries(D.states.map(s => [s.id, s.label])); L[-1] = 'dead';
+            const T = (x, a) => x === -1 ? -1 : ((m[x + '|' + a] || [])[0] ?? -1), ids = [s0], seen = new Set(ids);
+            for (let k = 0; k < ids.length; k++)al.forEach(a => {const y = T(ids[k], a); if (y !== -1 && !seen.has(y)) {seen.add(y); ids.push(y)} });
+            const removed = D.states.length - ids.length, addDead = ids.some(x => al.some(a => T(x, a) === -1)); if (addDead) ids.push(-1);
+            const C = {type: 'DFA', states: ids.map(x => ({id: x, label: L[x], isStart: x === s0, isAccept: acc.has(x), meta: x === -1 ? {dead: true} : {set: D.states.find(s => s.id === x).meta?.set}})), alphabet: al, transitions: ids.flatMap(x => al.map(a => ({from: x, to: T(x, a), symbol: a})))};
+            const grp = b => {const g = {}; ids.forEach(x => (g[b[x]] ??= []).push(x)); return Object.values(g)};
+            let blk = {}; ids.forEach(x => blk[x] = acc.has(x) ? 1 : 0);
+            const rounds = [{blocks: grp(blk).map(g => g.map(x => L[x])), note: 'Round 0: accepting vs non-accepting states.'}],
+                steps = [{title: 'Round 0 – initial partition', expl: `Start with {accepting} and {non-accepting}.${removed ? ` ${removed} unreachable state(s) removed.` : ''}${addDead ? ' A dead (trap) state was added so every state has a move on every symbol; it absorbs all missing transitions and is never accepting.' : ''}`, auto: C, lay: C, hl: {col: {...blk}}}];
+            for (let r = 1; ; r++) {
+                const sig = {}, nb = {}; let c = 0; ids.forEach(x => {const k = blk[x] + '|' + al.map(a => blk[T(x, a)]).join(','); if (!(k in sig)) sig[k] = c++; nb[x] = sig[k]});
+                if (c === new Set(Object.values(blk)).size) break;
+                const why = []; grp(blk).forEach(g => {if (new Set(g.map(x => nb[x])).size > 1) {const a = al.find(a => new Set(g.map(x => blk[T(x, a)])).size > 1); why.push(`{${g.map(x => L[x])}} splits on “${a}”: ` + [...new Set(g.map(x => blk[T(x, a)]))].map(b => g.filter(x => blk[T(x, a)] === b).map(x => L[x]) + ' → block ' + b).join(' vs '))} });
+                blk = nb; const txt = why.join('; '); rounds.push({blocks: grp(blk).map(g => g.map(x => L[x])), note: `Round ${r}: ` + txt}); steps.push({title: `Round ${r} – refine`, expl: txt + '.', auto: C, lay: C, hl: {col: {...blk}}})
+            }
+            const bl = grp(blk), bi = {}; bl.forEach((g, i) => g.forEach(x => bi[x] = i)); const order = [...new Set(ids.map(x => bi[x]))], ren = {}; order.forEach((b, i) => ren[b] = i);
+            const states = order.map((b, i) => {const g = bl[b]; return {id: i, label: 'Q' + i, isStart: g.includes(s0), isAccept: acc.has(g[0]), meta: {members: F(g.map(x => L[x])), dead: g.every(x => !acc.has(x)) && !g.includes(s0) && g.every(x => al.every(a => bi[T(x, a)] === b))}}}),
+                transitions = order.flatMap((b, i) => al.map(a => ({from: i, to: ren[bi[T(bl[b][0], a)]], symbol: a}))), min = {type: 'DFA', states, alphabet: al, transitions}, nd = states.filter(s => s.meta.dead).length;
+            steps.push({title: 'Merge equivalent states', expl: `The partition is stable. Each block becomes one state: ${states.length} states${nd ? ` (${states.length - nd} without the dead state – tick “hide dead state”)` : ''}. Equal colours = merged states.`, auto: min, lay: min, hl: {col: Object.fromEntries(states.map(s => [s.id, s.id]))}});
+            return {min, steps, rounds}
+        }
+        /* ---------- regex algebra + state elimination ---------- */
+        const wr = (x, m) => x.p >= m ? x.s : '(' + x.s + ')', isE = x => x && x.s === EPS;
+        function U(a, b) {if (!a) return b; if (!b) return a; if (a.s === b.s) return a; if (isE(b)) [a, b] = [b, a]; if (isE(a)) {if (b.p === 2 && /[*?]$/.test(b.s)) return b; return {s: wr(b, 2) + '?', p: 2}} return {s: a.s + '|' + b.s, p: 0}}
+        const C_ = (a, b) => !a || !b ? null : isE(a) ? b : isE(b) ? a : {s: wr(a, 1) + wr(b, 1), p: 1},
+            S_ = a => {if (!a || isE(a)) return {s: EPS, p: 2}; if (a.p === 2 && a.s.endsWith('*')) return a; if (a.p === 2 && a.s.endsWith('?')) return {s: a.s.slice(0, -1) + '*', p: 2}; return {s: wr(a, 2) + '*', p: 2}};
+        function elim(A) {
+            const n = A.states.length, ix = {}; A.states.forEach((s, i) => ix[s.id] = i); const S = n, Fn = n + 1, R = Array.from({length: n + 2}, () => Array(n + 2).fill(null)), steps = [],
+                sym = c => ({s: c === EPS ? EPS : (/[|()*+?\\\[\]{}]/.test(c) ? '\\' + c : c), p: 2}), add = (i, j, r) => R[i][j] = U(R[i][j], r), name = i => i === S ? 'S' : i === Fn ? 'F' : A.states[i].label, alive = new Set([...Array(n + 2).keys()]);
+            A.transitions.forEach(t => add(ix[t.from], ix[t.to], sym(t.symbol))); A.states.forEach(s => {if (s.isStart) add(S, ix[s.id], sym(EPS)); if (s.isAccept) add(ix[s.id], Fn, sym(EPS))});
+            const snap = (title, expl, q) => {const ids = [...alive], tr = []; ids.forEach(i => ids.forEach(j => {if (R[i][j]) tr.push({from: i, to: j, symbol: R[i][j].s})})); steps.push({title, expl, auto: {type: 'GNFA', states: ids.map(i => ({id: i, label: name(i), isStart: i === S, isAccept: i === Fn})), alphabet: [], transitions: tr}, hl: {r: q == null ? [] : [q]}})};
+            snap('Initial GNFA', 'Added a new start S (ε to the old start) and a new accept F (ε from every accepting state). Parallel edges are merged with union “|”. Edge labels are now regular expressions.');
+            let rest = [...Array(n).keys()];
+            while (rest.length) {
+                const cost = q => {let i = 0, o = 0; alive.forEach(p => {if (p !== q) {if (R[p][q]) i++; if (R[q][p]) o++} }); return i * o}; rest.sort((a, b) => cost(a) - cost(b)); const q = rest.shift(), lp = R[q][q];
+                snap(`Eliminate ${name(q)}`, `Removing ${name(q)} (cheapest: ${cost(q)} bypass edge pair(s)). For each p→${name(q)}→r the new label is R(p,r) | R(p,${name(q)}) ${name(q)}-loop* R(${name(q)},r)${lp ? `; loop here is ${lp.s}` : ''}.`, q);
+                alive.delete(q); const l = S_(lp);[...alive].forEach(p => [...alive].forEach(r => {if (R[p][q] && R[q][r]) R[p][r] = U(R[p][r], C_(C_(R[p][q], l), R[q][r]))}))
+            }
+            const res = R[S][Fn]; snap('Result', `The single S→F edge is the answer: ${res ? res.s : '∅ (empty language)'}.`); steps.forEach(s => s.lay = steps[0].auto); return {steps, regex: res ? res.s : '∅'}
+        }
+        /* ---------- simulate / equivalence / enumerate ---------- */
+        function simulate(A, str) {let cur = clo(A, [startId(A)]); const path = [[...cur]]; for (const ch of str) {cur = clo(A, move(A, cur, ch)); path.push([...cur])} return {acc: accepts(A, cur), path}}
+        function equiv(A, B) {
+            const al = [...new Set([...A.alphabet, ...B.alphabet])].sort(), sa = clo(A, [startId(A)]), sb = clo(B, [startId(B)]), seen = new Set([key(sa) + '#' + key(sb)]), q = [[sa, sb, '']];
+            for (let i = 0; i < q.length; i++) {
+                const [x, y, w] = q[i]; if (accepts(A, x) !== accepts(B, y)) return {eq: false, w}; if (seen.size > 60000) return {eq: null};
+                for (const a of al) {const nx = clo(A, move(A, x, a)), ny = clo(B, move(B, y, a)), k = key(nx) + '#' + key(ny); if (!seen.has(k)) {seen.add(k); q.push([nx, ny, w + a])} }
+            } return {eq: true}
+        }
+        function enumerate(N, n = 12) {const out = [], q = [[clo(N, [startId(N)]), '']]; for (let i = 0; i < q.length && out.length < n && i < 20000; i++) {const [s, w] = q[i]; if (accepts(N, s)) out.push(w || EPS); N.alphabet.forEach(a => {const t = clo(N, move(N, s, a)); if (t.size) q.push([t, w + a])})} return out}
+        const nfaOf = src => {const r = parse(src.trim()); return thompson(r.ast, r.alphabet).at(-1).auto};
+        /* ---------- layout & drawing ---------- */
+        function layout(A) {
+            const adj = {}, lv = {}, P = {}; A.transitions.forEach(t => (adj[t.from] ??= []).push(t.to));
+            const bfs = r => {lv[r] ??= 0; const q = [r]; while (q.length) {const x = q.shift(); (adj[x] || []).forEach(y => {if (!(y in lv)) {lv[y] = lv[x] + 1; q.push(y)} })} };
+            A.states.filter(s => s.isStart).forEach(s => bfs(s.id)); A.states.forEach(s => {if (!(s.id in lv)) bfs(s.id)});
+            const cols = {}; A.states.forEach(s => (cols[lv[s.id]] ??= []).push(s.id));
+            for (const l in cols) cols[l].forEach((id, i) => P[id] = {x: 90 + l * 130, y: 240 + (i - (cols[l].length - 1) / 2) * 100, l: +l}); return P
+        }
+        const SC = '.nd circle{stroke:var(--edge);stroke-width:2;fill:var(--card)}.nd .in{fill:none}.nd text{fill:var(--tx);font:600 12px Inter,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}.nd{cursor:grab}.nd.on circle:first-of-type{stroke:var(--ac);stroke-width:3.5;filter:drop-shadow(0 0 7px var(--ac));animation:pu .8s}.nd.red circle:first-of-type{stroke:var(--er);stroke-width:4;filter:drop-shadow(0 0 7px var(--er))}.nd.hv circle:first-of-type{stroke:var(--ac2);stroke-width:3.5}.dd{opacity:.5}.sa{stroke:var(--ok);stroke-width:2.5;fill:none}.ed{fill:none;stroke:var(--edge);stroke-width:1.6}.ed.h{stroke:var(--ac);stroke-width:3}.el{font:600 12px Inter,sans-serif;fill:var(--tx);text-anchor:middle;paint-order:stroke;stroke:var(--card);stroke-width:4px}@keyframes pu{from{stroke-width:10}}';
+        const mkr = (i, c) => `<marker id="${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:${c}"/></marker>`;
+        let vb = {x: 0, y: 0, w: 800, h: 470};
+        function drawSVG(A, P, hl, hide) {
+            const vs = A.states.filter(s => !(hide && s.meta?.dead)), vi = new Set(vs.map(s => s.id)), g = {}; let o = '';
+            A.transitions.forEach(t => {if (vi.has(t.from) && vi.has(t.to)) (g[t.from + '>' + t.to] ??= []).push(t.symbol)});
+            for (const k in g) {
+                const [f, t] = k.split('>').map(Number), a = P[f], b = P[t], lb = esc([...new Set(g[k])].join(',')), h = (hl.e || []).includes(k) ? ' h' : ''; let d, lx, ly;
+                if (f === t) {d = `M${a.x - 12},${a.y - 18}C${a.x - 36},${a.y - 64} ${a.x + 36},${a.y - 64} ${a.x + 12},${a.y - 18}`; lx = a.x; ly = a.y - 58}
+                else {const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, off = g[t + '>' + f] ? 34 : (Math.abs(a.l - b.l) === 1 ? 0 : 40), cx = (a.x + b.x) / 2 - dy / L * off * 2, cy = (a.y + b.y) / 2 + dx / L * off * 2, u = (px, py, qx, qy, r) => {const m = Math.hypot(qx - px, qy - py) || 1; return [px + (qx - px) / m * r, py + (qy - py) / m * r]}, [sx, sy] = u(a.x, a.y, cx, cy, 20), [ex, ey] = u(b.x, b.y, cx, cy, 23); d = `M${sx},${sy}Q${cx},${cy} ${ex},${ey}`; lx = (sx + 2 * cx + ex) / 4; ly = (sy + 2 * cy + ey) / 4 - 5}
+                o += `<path class="ed${h}" d="${d}" marker-end="url(#${h ? 'arh' : 'ar'})"/><text class="el" x="${lx}" y="${ly}">${lb}</text>`
+            }
+            vs.forEach(s => {
+                const p = P[s.id], c = hl.col && hl.col[s.id], cl = ['nd', (hl.s || []).includes(s.id) && 'on', (hl.r || []).includes(s.id) && 'red', s.meta?.dead && 'dd'].filter(Boolean).join(' ');
+                o += `<g class="${cl}" data-id="${s.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="img" aria-label="State ${esc(s.label)}${s.isStart ? ', start' : ''}${s.isAccept ? ', accepting' : ''}"><title>${esc(s.label)}${s.meta?.set ? ' = NFA ' + s.meta.set : ''}${s.meta?.members ? ' = ' + s.meta.members : ''}${s.meta?.dead ? ' (dead state)' : ''}</title>${s.isStart ? '<path class="sa" d="M-60,0H-25" marker-end="url(#arg)"/>' : ''}<circle r="20"${c !== undefined ? ` style="fill:hsl(${c * 67 % 360} 70% 60%/.4)"` : ''}/>${s.isAccept ? '<circle class="in" r="15"/>' : ''}<text>${esc(s.label)}</text></g>`
+            });
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" role="img" aria-label="Automaton diagram"><style>${SC}</style><defs>${mkr('ar', 'var(--edge)')}${mkr('arh', 'var(--ac)')}${mkr('arg', 'var(--ok)')}</defs>${o}</svg>`
+        }
+        /* ---------- app state ---------- */
+        const pages = {r: {stages: [], si: 1, idx: 0, sims: []}, f: {stages: [], si: 0, idx: 0, sims: []}}, PT = [['tbl', 'Table'], ['stp', 'Steps'], ['sub', 'Subset'], ['par', 'Partitions'], ['sim', 'Simulator']], pos = new WeakMap;
+        let tab = 'r', ptab = 'tbl', needFit = true, timer = null, drag = null;
+        const pg = () => pages[tab], steps = () => {const p = pg(); return p.over || p.stages[p.si]?.steps || []}, cur = () => steps()[pg().idx];
+        function toast(m, k) {const t = $('#toast'); t.textContent = m; t.style.background = k === 'bad' ? '#dc2626' : '#16a34a'; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3200)}
+        function fit(P, A) {
+            const hide = $('#hd').checked, xs = [], ys = []; A.states.forEach(s => {if (P[s.id] && !(hide && s.meta?.dead)) {xs.push(P[s.id].x); ys.push(P[s.id].y)} }); if (!xs.length) return;
+            const x0 = Math.min(...xs) - 90, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 90, y1 = Math.max(...ys) + 50, h = $('#cvh'), asp = (h.clientWidth || 800) / (h.clientHeight || 470); let w = x1 - x0, hh = y1 - y0; if (w / hh < asp) w = hh * asp; else hh = w / asp; vb = {x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - hh / 2, w, h: hh}; needFit = false
+        }
+        function draw() {
+            const st = cur(), h = $('#cvh'); if (!st) {h.innerHTML = '<div class="empty">Enter an input and press Convert.</div>'; return }
+            if (!st.auto) {h.innerHTML = '<pre class="ast">' + esc(st.text) + '</pre>'; return }
+            const lay = st.lay || st.auto; let P = pos.get(lay); if (!P) {P = layout(lay); pos.set(lay, P)} if (needFit) fit(P, lay); h.innerHTML = drawSVG(st.auto, P, st.hl || {}, $('#hd').checked)
+        }
+        const hsl = i => `background:hsl(${i * 67 % 360} 70% 60%/.4)`;
+        function tableHTML(A) {
+            if (!A) return '<p class="mut">No automaton at this step.</p>';
+            if (A.type === 'GNFA') return '<table id="tbl"><tr><th>From<th>Regex label<th>To</tr>' + A.transitions.map(t => `<tr><td>${esc(lbl(A, t.from))}<td>${esc(t.symbol)}<td>${esc(lbl(A, t.to))}`).join('') + '</table>';
+            const al = [...A.alphabet]; if (A.transitions.some(t => t.symbol === EPS)) al.push(EPS); const m = adjOf(A);
+            return '<table id="tbl"><tr><th>State' + al.map(a => '<th>' + esc(a)).join('') + '</tr>' + A.states.map(s => `<tr data-id="${s.id}"><td>${s.isStart ? '→ ' : ''}${s.isAccept ? '* ' : ''}${esc(s.label)}` + al.map(a => '<td>' + (((m[s.id + '|' + a] || []).map(y => esc(lbl(A, y))).join(', ')) || '–')).join('')).join('') + `</table><p class="mut">→ start · * accepting · ${A.states.length} states</p>`
+        }
+        function simHTML(p) {
+            let h = `<div class="row"><input id="ss" placeholder="string, empty = ε" value="${esc(p.simStr || '')}" aria-label="Test string" style="flex:1"><button class="btn" id="run">Run</button></div>`;
+            if (p.simStr === undefined || !p.sims.length) return h + '<p class="mut">Run a string through every automaton of the pipeline; use Animate to watch active states glow on the canvas (all NFA states glow together).</p>';
+            p.sims.forEach((s, i) => {const r = simulate(s.auto, p.simStr); s.r = r; h += `<div class="exp" style="margin-bottom:8px"><b>${s.name}</b> (${s.auto.states.length} states) <span class="chip ${r.acc ? 'ok' : 'bad'}">${r.acc ? '✔ ACCEPT' : '✘ REJECT'}</span> <button class="btn gh" data-an="${i}">▶ Animate</button><div class="mut" style="word-break:break-word">${r.path.map(x => F(x.map(id => lbl(s.auto, id)).join(','))).join(' → ')}</div></div>`}); return h
+        }
+        function renderPanel() {
+            const st = cur(), p = pg(); $('#ptabs').innerHTML = PT.map(([k, n]) => `<button class="tb${k === ptab ? ' on' : ''}" data-pt="${k}">${n}</button>`).join(''); let h = '';
+            if (ptab === 'sim') h = simHTML(p); else if (!st) h = '<p class="mut">Nothing yet.</p>';
+            else if (ptab === 'tbl') h = tableHTML(st.auto);
+            else if (ptab === 'stp') h = `<div class="exp"><b>${esc(st.title)}</b><p>${esc(st.expl)}</p></div><ol class="sl">${steps().map((s, i) => `<li><button data-go="${i}" class="${i === p.idx ? 'on' : ''}">${esc(s.title)}</button>`).join('')}</ol>`;
+            else if (ptab === 'sub') h = tab === 'r' && p.sub ? `<table><tr><th>DFA<th>NFA set` + p.sub.al.map(a => `<th>${esc(a)}: move → closure → target`).join('') + '</tr>' + p.sub.rows.map(r => `<tr data-id="${p.sub.rows.indexOf(r)}"><td><b>${r.name}</b><td>${F(r.set)}` + p.sub.al.map(a => {const c = r.cells[a]; return `<td>${F(c.mv)} → ${F(c.cl)} → <b>${c.tg || '∅'}</b>`}).join('')).join('') + '</table>' : '<p class="mut">The subset table is available on the Regex → Automata page.</p>';
+            else if (ptab === 'par') h = tab === 'r' && p.parts ? p.parts.map((r, k) => `<div style="margin-bottom:8px"><b>Round ${k}</b> <span class="mut">${esc(r.note)}</span><br>` + r.blocks.map((b, i) => `<span class="blk" style="${hsl(i)}">{${esc(b.join(', '))}}</span>`).join('') + '</div>').join('') + `<p class="mut">Final: ${p.min.states.length} states (equal colour = merged).</p>` : '<p class="mut">Partition tables are available on the Regex → Automata page.</p>';
+            $('#pbody').innerHTML = h
+        }
+        function renderPipe() {const p = pg(); $('#pipe').innerHTML = p.stages.map((s, i) => `<button class="ps${i === p.si ? ' on' : ''}" data-st="${i}"><b>${i + 1}. ${s.name}</b><small>${s.badge || ''}</small></button>`).join('<span class="ar">→</span>')}
+        function bar() {const n = steps().length, p = pg(); $('#sc').textContent = n ? `Step ${p.idx + 1} / ${n}` : ''; $('#pv').disabled = p.idx <= 0; $('#nx').disabled = p.idx >= n - 1}
+        function render() {if ('rf'.includes(tab)) {renderPipe(); draw(); renderPanel(); bar()} }
+        function stop() {clearTimeout(timer); timer = null; $('#pl').textContent = '▶ Play'}
+        function tick() {timer = setTimeout(() => {const p = pg(); if (p.idx < steps().length - 1) {p.idx++; render(); tick()} else stop()}, 2300 - $('#sp').value * 200)}
+        function play() {if (timer) return stop(); const p = pg(); if (p.idx >= steps().length - 1) p.idx = 0; $('#pl').textContent = '⏸ Pause'; render(); tick()}
+        function go(d) {stop(); const p = pg(); p.idx = Math.max(0, Math.min(steps().length - 1, p.idx + d)); render()}
+        /* ---------- pipelines ---------- */
+        function runR() {
+            const src = $('#rx').value.trim(); let r; try {r = parse(src)} catch (e) {return toast(`Position ${(e.pos ?? 0) + 1}: ${e.message}`, 'bad')}
+            try {
+                const ns = thompson(r.ast, r.alphabet), nfa = ns.at(-1).auto, sd = subset(nfa), mn = minimize(sd.dfa), p = pages.r, dn = mn.min.states.filter(s => s.meta.dead).length;
+                Object.assign(p, {nfa, sub: sd, parts: mn.rounds, min: mn.min, dfa: sd.dfa, over: null, si: 1, idx: ns.length - 1, stages: [{name: 'Parse', badge: `alphabet {${r.alphabet.join(',')}}`, steps: [{title: 'Abstract syntax tree', expl: `Precedence: * + ? bind tightest, then concatenation, then union. Alphabet = {${r.alphabet.join(', ')}}.`, auto: null, text: astTxt(r.ast)}]}, {name: 'ε-NFA', badge: nfa.states.length + ' states', steps: ns}, {name: 'DFA', badge: sd.dfa.states.length + ' states', steps: sd.steps}, {name: 'Min DFA', badge: mn.min.states.length + ' states' + (dn ? ' (incl. dead)' : ''), steps: mn.steps}], sims: [{name: 'ε-NFA', auto: nfa, stage: 1}, {name: 'DFA', auto: sd.dfa, stage: 2}, {name: 'Min DFA', auto: mn.min, stage: 3}]});
+                needFit = true; stop(); render(); toast(`ε-NFA ${nfa.states.length} → DFA ${sd.dfa.states.length} → min DFA ${mn.min.states.length} states`)
+            } catch (e) {toast(e.message, 'bad')}
+        }
+        function parseFA(t) {
+            const names = [], id = n => {let i = names.indexOf(n); if (i < 0) {i = names.length; names.push(n)} return i}; let start = null, acc = []; const tr = [];
+            t.split('\n').forEach((raw, ln) => {
+                const l = raw.replace(/#.*/, '').trim(); if (!l) return; let m;
+                if (m = l.match(/^states?\s*:\s*(.*)$/i)) m[1].split(/[\s,]+/).filter(Boolean).forEach(id);
+                else if (m = l.match(/^start\s*:\s*(\S+)$/i)) start = id(m[1]);
+                else if (m = l.match(/^accept\s*:\s*(.*)$/i)) acc = m[1].split(/[\s,]+/).filter(Boolean).map(id);
+                else {const w = l.split(/\s+/); if (w.length !== 3) throw new E(`Line ${ln + 1}: expected “from symbols to”`, 0); w[1].split(',').forEach(s => tr.push({from: id(w[0]), to: id(w[2]), symbol: /^(eps|ε)$/i.test(s) ? EPS : s}))}
+            });
+            if (start === null) throw new E('Missing “start: <state>” line', 0);
+            return {type: 'NFA', states: names.map((n, i) => ({id: i, label: n, isStart: i === start, isAccept: acc.includes(i)})), alphabet: [...new Set(tr.map(t => t.symbol).filter(s => s !== EPS))].sort(), transitions: tr}
+        }
+        function runF(quiet) {
+            let A; try {A = parseFA($('#ft').value)} catch (e) {return quiet || toast(e.message, 'bad')}
+            try {
+                const r = elim(A), p = pages.f; Object.assign(p, {over: null, si: 1, idx: r.steps.length - 1, sims: [{name: 'Automaton', auto: A, stage: 0}], stages: [{name: 'Automaton', badge: A.states.length + ' states', steps: [{title: 'Your automaton', expl: 'Parsed from the text editor. Press Eliminate to start state elimination.', auto: A, hl: {}}]}, {name: 'State elimination', badge: r.steps.length + ' steps', steps: r.steps}]});
+                $('#fres').innerHTML = `<p>Regular expression: <code style="font-size:17px">${esc(r.regex)}</code> <button class="btn gh" id="cpy">Copy</button></p>`; needFit = true; stop(); render(); quiet || toast('Regex: ' + r.regex)
+            } catch (e) {toast(e.message, 'bad')}
+        }
+        function toText(A) {return `start: ${lbl(A, startId(A))}\naccept: ${A.states.filter(s => s.isAccept).map(s => s.label).join(' ')}\n` + A.transitions.map(t => `${lbl(A, t.from)} ${t.symbol} ${lbl(A, t.to)}`).join('\n')}
+        /* ---------- UI wiring ---------- */
+        const EX = [['(a|b)*abb', 'Strings ending in abb. Expect 14 / 5 / 4 states. Try “aabb” then “abba” in the Simulator.'], ['a*b*', 'All a’s then all b’s. Minimal DFA needs a dead state for “ba”.'], ['(ab|a)*b', 'Words built from ab / a blocks, then b.'], ['a+b?', 'At least one a, optional trailing b.'], ['(0|1)*101', 'Binary strings ending in 101.'], ['(a|)', 'Empty alternative = optional a; accepts ε and a.']];
+        $('#exs').innerHTML = EX.map((e, i) => `<button class="ex" data-ex="${i}">${esc(e[0])}</button>`).join('');
+        function validate() {const c = $('#chip'); try {const r = parse($('#rx').value); c.className = 'chip ok'; c.textContent = `✔ Valid · alphabet {${r.alphabet.join(', ')}}`} catch (e) {c.className = 'chip bad'; c.textContent = `✘ Position ${(e.pos ?? 0) + 1}: ${e.message}`} }
+        const TABS = [['r', 'Regex → Automata'], ['f', 'Automata → Regex'], ['c', 'Compare'], ['l', 'Learn']];
+        function setTab(t) {tab = t; stop(); needFit = true; document.querySelectorAll('.pg').forEach(x => x.hidden = x.id !== 'pg-' + t); const w = 'rf'.includes(t); $('#ws').hidden = $('#bar').hidden = $('#pipe').hidden = !w; $('#tabs').innerHTML = TABS.map(([k, n]) => `<button class="tb${k === t ? ' on' : ''}" data-tab="${k}">${n}</button>`).join(''); render()}
+        function dl(name, blob) {const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)}
+        function svgStr() {const s = $('#cvh svg'); if (!s) return null; const cs = getComputedStyle(document.documentElement); return new XMLSerializer().serializeToString(s).replace(/var\((--[\w-]+)\)/g, (_, v) => cs.getPropertyValue(v).trim()).replace('<svg', `<svg width="1200" height="${Math.round(1200 * vb.h / vb.w)}"`)}
+        function exp(k) {
+            const st = cur(); if (!st) return;
+            if (k === 'svg') {const x = svgStr(); if (!x) return toast('Nothing to export', 'bad'); dl('autolab.svg', new Blob([x], {type: 'image/svg+xml'})); toast('SVG exported')}
+            else if (k === 'png') {const x = svgStr(); if (!x) return toast('Nothing to export', 'bad'); const im = new Image; im.onload = () => {const c = document.createElement('canvas'); c.width = 2400; c.height = Math.round(2400 * vb.h / vb.w); const g = c.getContext('2d'); g.fillStyle = getComputedStyle(document.body).backgroundColor; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); c.toBlob(b => {dl('autolab.png', b); toast('PNG exported')})}; im.onerror = () => toast('PNG export failed', 'bad'); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(x)}
+            else if (k === 'json') {if (!st.auto) return toast('No automaton at this step', 'bad'); const {type, states, alphabet, transitions} = st.auto; dl('automaton.json', new Blob([JSON.stringify({type, states, alphabet, transitions}, null, 2)], {type: 'application/json'})); toast('JSON saved')}
+            else {const t = $('#tbl'); if (!t) return toast('Open the Table tab on an automaton step first', 'bad'); dl('table.csv', new Blob([[...t.rows].map(r => [...r.cells].map(c => '"' + c.textContent.replace(/"/g, '""') + '"').join(',')).join('\n')], {type: 'text/csv'})); toast('CSV exported')}
+        }
+        document.addEventListener('click', e => {
+            const b = e.target.closest('button'); if (!b) return; const d = b.dataset, p = pg(), id = b.id;
+            if (d.tab) return setTab(d.tab);
+            if (d.st !== undefined) {stop(); p.si = +d.st; p.over = null; p.idx = steps().length - 1; needFit = true; return render()}
+            if (d.pt) {ptab = d.pt; return renderPanel()}
+            if (d.go !== undefined) {stop(); p.idx = +d.go; return render()}
+            if (d.ex !== undefined) {$('#rx').value = EX[d.ex][0]; $('#exd').textContent = 'Experiment: ' + EX[d.ex][1]; validate(); return runR()}
+            if (d.an !== undefined) {const s = p.sims[+d.an], str = [...p.simStr || '']; stop(); p.si = s.stage; needFit = true; p.idx = 0; p.over = s.r.path.map((set, k) => ({title: k ? `Read “${str[k - 1]}”` : 'Start (ε-closure of start)', expl: `Active state(s): ${F(set.map(i => lbl(s.auto, i)).join(', ')) || 'none'}.${k === s.r.path.length - 1 ? ` Input finished → ${s.r.acc ? 'ACCEPT' : 'REJECT'}.` : ''}`, auto: s.auto, hl: {s: set}})); ptab = 'stp'; render(); return play()}
+            switch (id) {
+                case 'go': return runR(); case 'gof': return runF(); case 'pv': return go(-1); case 'nx': return go(1); case 'pl': return play();
+                case 'fit': needFit = true; return draw(); case 'rl': {const st = cur(); if (st?.auto) {pos.delete(st.lay || st.auto); needFit = true; draw()} return }
+                case 'svg': case 'png': case 'json': case 'csv': return exp(id);
+                case 'th': {const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches; r.dataset.theme = dark ? 'light' : 'dark'; try {localStorage.setItem('al-th', r.dataset.theme)} catch (_) { } return }
+                case 'run': p.simStr = $('#ss').value; return renderPanel();
+                case 'cpy': try {navigator.clipboard.writeText($('#fres code').textContent); toast('Copied')} catch (_) {toast('Copy failed', 'bad')} return;
+                case 'loadc': {const A = pages.r.dfa; if (!A) return toast('Convert a regex first', 'bad'); $('#ft').value = toText(A); return runF()}
+                case 'cmp': {
+                    try {
+                        const a = nfaOf($('#c1').value), b = nfaOf($('#c2').value), r = equiv(a, b); let h;
+                        if (r.eq === true) h = '<span class="chip ok">✔ Equivalent – both accept exactly the same language</span>'; else if (r.eq === false) {const w = r.w || EPS; h = `<span class="chip bad">✘ Not equivalent</span><p>Shortest distinguishing string: <code>${esc(w)}</code> – accepted only by ${simulate(a, r.w).acc ? 'regex 1' : 'regex 2'}.</p>`} else h = '<span class="chip bad">Search limit reached</span>';
+                        $('#cres').innerHTML = h + `<div class="g2" style="margin-top:12px"><div class="exp"><b>First strings of regex 1</b><p>${esc(enumerate(a).join(', '))}</p></div><div class="exp"><b>First strings of regex 2</b><p>${esc(enumerate(b).join(', '))}</p></div></div>`
+                    } catch (e) {toast(`Position ${(e.pos ?? 0) + 1}: ${e.message}`, 'bad')} return
+                }
+            }
+        });
+        document.addEventListener('input', e => {if (e.target.id === 'rx') validate(); if (e.target.id === 'ss') pg().simStr = e.target.value; if (e.target.id === 'hd') {needFit = true; draw()} });
+        document.addEventListener('keydown', e => {
+            const t = e.target.tagName, typing = t === 'INPUT' || t === 'TEXTAREA';
+            if (e.key === 'Enter' && e.target.id === 'rx') {e.preventDefault(); return runR()} if (e.key === 'Enter' && e.target.id === 'ss') {pg().simStr = e.target.value; return renderPanel()} if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.id === 'ft') return runF();
+            if (typing || !'rf'.includes(tab)) return; if (e.key === 'ArrowRight') go(1); else if (e.key === 'ArrowLeft') go(-1); else if (e.key === ' ') {e.preventDefault(); play()}
+        });
+        document.addEventListener('mouseover', e => {const t = e.target.closest('[data-id]'); document.querySelectorAll('.hv').forEach(x => x.classList.remove('hv')); if (t) document.querySelectorAll(`[data-id="${t.dataset.id}"]`).forEach(x => x.classList.add('hv'))});
+        let ftT; $('#ft').addEventListener('input', () => {clearTimeout(ftT); ftT = setTimeout(() => {if (tab === 'f') runF(true)}, 500)});
+        const cv = $('#cvh');
+        cv.addEventListener('pointerdown', e => {const svg = cv.querySelector('svg'), st = cur(); if (!svg || !st?.auto) return; const nd = e.target.closest('.nd'), r = svg.getBoundingClientRect(); drag = {id: nd ? +nd.dataset.id : null, x: e.clientX, y: e.clientY, k: vb.w / r.width, P: pos.get(st.lay || st.auto)}});
+        addEventListener('pointermove', e => {if (!drag) return; const dx = (e.clientX - drag.x) * drag.k, dy = (e.clientY - drag.y) * drag.k; drag.x = e.clientX; drag.y = e.clientY; if (drag.id !== null) {const p = drag.P[drag.id]; p.x += dx; p.y += dy} else {vb.x -= dx; vb.y -= dy} draw()});
+        addEventListener('pointerup', () => drag = null);
+        cv.addEventListener('wheel', e => {const svg = cv.querySelector('svg'); if (!svg) return; e.preventDefault(); const r = svg.getBoundingClientRect(), f = e.deltaY > 0 ? 1.12 : .89, mx = vb.x + (e.clientX - r.left) / r.width * vb.w, my = vb.y + (e.clientY - r.top) / r.height * vb.h; vb = {x: mx - (mx - vb.x) * f, y: my - (my - vb.y) * f, w: vb.w * f, h: vb.h * f}; draw()}, {passive: false});
+        addEventListener('resize', () => {needFit = true; draw()});
+        try {const t = localStorage.getItem('al-th'); if (t) document.documentElement.dataset.theme = t} catch (_) { }
+        validate(); runR(); runF(true); setTab('r');
+    </script>
+</body>
+
+</html>
